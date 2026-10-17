@@ -1,23 +1,23 @@
 <?php
 /**
- * ActaFl API - Conexión Segura PDO con Carga de .env
+ * ActaFl API - Conexión PDO con Diagnóstico Flexible de .env
  */
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
-// Nombre de sesión aislado para ActaFl
 session_name('ACTAFL_SESSION');
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 /**
- * Carga liviana de variables de entorno .env
+ * Carga liviana de variables de entorno
  */
 function cargarEnv($ruta) {
     if (!file_exists($ruta)) return false;
     $lineas = file($ruta, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lineas as $linea) {
-        if (strpos(trim($linea), '#') === 0) continue;
+        $linea = trim($linea);
+        if ($linea === '' || strpos($linea, '#') === 0) continue;
         if (strpos($linea, '=') !== false) {
             list($nombre, $valor) = explode('=', $linea, 2);
             $_ENV[trim($nombre)] = trim($valor);
@@ -26,18 +26,25 @@ function cargarEnv($ruta) {
     return true;
 }
 
-// 1. Carga desde ubicación de producción en Hostinger (fuera de public_html)
-$rutaSegura = dirname(__DIR__, 2) . '/.env';
+// Probar múltiples ubicaciones posibles del .env en Hostinger
+$rutasEnv = [
+    dirname(__DIR__) . '/.env',                 // Raíz del proyecto
+    dirname(__DIR__, 2) . '/.env',              // Un nivel arriba de public_html
+    $_SERVER['DOCUMENT_ROOT'] . '/../.env',     // Relativo al DocumentRoot
+    __DIR__ . '/../.env'                        // Resguardo local
+];
 
-if (!cargarEnv($rutaSegura)) {
-    // 2. Resguardo para desarrollo local (Docker)
-    cargarEnv(__DIR__ . '/../.env');
+foreach ($rutasEnv as $ruta) {
+    if (cargarEnv($ruta)) {
+        break;
+    }
 }
 
-$host = $_ENV['DB_HOST'] ?? 'db';
-$db   = $_ENV['DB_NAME'] ?? 'actafl_db';
-$user = $_ENV['DB_USER'] ?? 'actafl_user';
-$pass = $_ENV['DB_PASS'] ?? 'user_password_local';
+// Extraer credenciales cargadas desde el .env
+$host = $_ENV['DB_HOST'] ?? 'localhost';
+$db   = $_ENV['DB_NAME'] ?? 'u220899471_actafl';
+$user = $_ENV['DB_USER'] ?? 'u220899471_actafl';
+$pass = $_ENV['DB_PASS'] ?? '';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
 $options = [
@@ -48,11 +55,13 @@ $options = [
 
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
-    
-    // Sincronización de zona horaria de Colombia (UTC-5)
     $pdo->exec("SET time_zone = '-05:00'");
     date_default_timezone_set('America/Bogota');
 } catch (\PDOException $e) {
-    echo json_encode(['success' => false, 'error' => 'Error de conexión a la base de datos de ActaFl']);
+    echo json_encode([
+        'success' => false,
+        'error'   => 'Error de conexión a la base de datos de ActaFl',
+        'detalle' => $e->getMessage() // Permite diagnosticar la causa exacta si falla la clave o el host
+    ], JSON_UNESCAPED_UNICODE);
     exit();
 }
