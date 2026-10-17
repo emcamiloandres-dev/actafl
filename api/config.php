@@ -43,7 +43,7 @@ foreach ($rutasEnv as $ruta) {
 // Extraer credenciales cargadas desde el .env
 $host = $_ENV['DB_HOST'] ?? 'localhost';
 $db   = $_ENV['DB_NAME'] ?? 'u220899471_actafl';
-$user = $_ENV['DB_USER'] ?? 'u220899471_actafl';
+$user = $_ENV['DB_USER'] ?? 'u220899471_actafl_admin';
 $pass = $_ENV['DB_PASS'] ?? '';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
